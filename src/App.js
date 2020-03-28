@@ -1,5 +1,5 @@
-/* eslint-disable jsx-a11y/img-redundant-alt */
 import React, { useState } from 'react';
+import logo from './logo.svg';
 import './App.css';
 import * as firebase from "firebase/app";
 import "firebase/auth";
@@ -11,12 +11,12 @@ function App() {
   const [user, setUser] = useState({
     isSignedIn: false,
     name: '',
-    email: '',
+    email:'',
     photo: ''
   })
 
   const provider = new firebase.auth.GoogleAuthProvider();
-  const handleSignIn = () => {
+  const handleSignIn = () =>{
     firebase.auth().signInWithPopup(provider)
     .then(res => {
       const {displayName, photoURL, email} = res.user;
@@ -27,10 +27,11 @@ function App() {
         photo: photoURL
       }
       setUser(signedInUser);
+      console.log(displayName, email, photoURL);
     })
     .catch(err => {
       console.log(err);
-      console.log(err.massage);
+      console.log(err.message);
     })
   }
 
@@ -38,37 +39,46 @@ function App() {
     firebase.auth().signOut()
     .then(res => {
       const signedOutUser = {
-        isSignedIn: false,
+        isSignedIn: false, 
         name: '',
-        photo: '',
-        email: '',
-        password: '',
-        isValid: false
+        phot:'',
+        email:'',
+        password:'',
+        error:'',
+        isValid:false,
+        existingUser: false
       }
       setUser(signedOutUser);
+      console.log(res);
     })
-    .catch(err => {
+    .catch( err => {
 
     })
   }
 
-  const is_valid_email = email =>  /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/.test(email);
+  const is_valid_email = email =>  /(.+)@(.+){2,}\.(.+){2,}/.test(email); 
   const hasNumber = input => /\d/.test(input);
-
-  const handleChange = event => {
+  
+  const switchForm = e =>{
+    const createdUser = {...user};
+    createdUser.existingUser = e.target.checked;
+    setUser(createdUser);
+  }
+  const handleChange = e =>{
     const newUserInfo = {
       ...user
     };
-
-    //perform validation;
+    //debugger;
+    // perform validation
     let isValid = true;
-    if(event.target.name === 'email'){
-      isValid = is_valid_email(event.target.value);
+    if(e.target.name === 'email'){
+      isValid = is_valid_email(e.target.value);
     }
-    if(event.target.name === "password"){
-      isValid = event.target.value.length>8 && hasNumber(event.target.value);
+    if(e.target.name === "password"){
+      isValid = e.target.value.length > 8 && hasNumber(e.target.value);
     }
-    newUserInfo[event.target.name] = event.target.value;
+
+    newUserInfo[e.target.name] = e.target.value;
     newUserInfo.isValid = isValid;
     setUser(newUserInfo);
   }
@@ -80,14 +90,38 @@ function App() {
         console.log(res);
         const createdUser = {...user};
         createdUser.isSignedIn = true;
+        createdUser.error = '';
         setUser(createdUser);
       })
       .catch(err => {
-        console.log(err);
+        console.log(err.message);
+        const createdUser = {...user};
+        createdUser.isSignedIn = false;
+        createdUser.error = err.message;
+        setUser(createdUser);
       })
     }
-    else{
-      console.log("Form is not valid", user);
+    event.preventDefault();
+    event.target.reset();
+  } 
+
+  const signInUser = event => {
+    if(user.isValid){
+      firebase.auth().signInWithEmailAndPassword(user.email, user.password)
+      .then(res => {
+        console.log(res);
+        const createdUser = {...user};
+        createdUser.isSignedIn = true;
+        createdUser.error = '';
+        setUser(createdUser);
+      })
+      .catch(err => {
+        console.log(err.message);
+        const createdUser = {...user};
+        createdUser.isSignedIn = false;
+        createdUser.error = err.message;
+        setUser(createdUser);
+      })
     }
     event.preventDefault();
     event.target.reset();
@@ -96,22 +130,38 @@ function App() {
   return (
     <div className="App">
       {
-        user.isSignedIn ? <button onClick={handleSignOut}>Sign Out</button> : <button onClick={handleSignIn}>Sign In</button>
+        user.isSignedIn ? <button onClick={handleSignOut} >Sign out</button> :
+        <button onClick={handleSignIn} >Sign in</button>
       }
       {
         user.isSignedIn && <div>
-          <p>Welcome, {user.name}</p>
-          <p>Your email: {user.email} </p>
-          <img src={user.photo} alt="User-Photo"/>
+          <p> Welcome, {user.name}</p>
+          <p>Your email: {user.email}</p>
+          <img src={user.photo} alt=""></img>
         </div>
       }
-      <h1>Our Own Authentication</h1>
-      <form onSubmit={createAccount}>
-        <input onBlur={handleChange} type="text" name="name" placeholder="Input your name" required /> <br/>
-        <input onBlur={handleChange} type="text" name="email" placeholder="Input your email" required /> <br/>
-        <input onBlur={handleChange} type="password" name="password" placeholder="Input your password" required /> <br/>
+      <h1>Our own Authentication</h1>
+      <input type="checkbox" name="switchForm" onChange={switchForm} id="switchForm"/>
+      <label htmlFor="switchForm"> Returning User</label>
+      <form style={{display:user.existingUser ? 'block': 'none'}} onSubmit={signInUser}>
+        <input type="text" onBlur={handleChange} name="email" placeholder="Your Email" required/>
+        <br/>
+        <input type="password" onBlur={handleChange} name="password" placeholder="Your Password" required/>
+        <br/>
+        <input type="submit" value="SignIn"/>
+      </form>
+      <form style={{display:user.existingUser ? 'none': 'block'}} onSubmit={createAccount}>
+        <input type="text" onBlur={handleChange} name="name" placeholder="Your Name" required/>
+        <br/>
+        <input type="text" onBlur={handleChange} name="email" placeholder="Your Email" required/>
+        <br/>
+        <input type="password" onBlur={handleChange} name="password" placeholder="Your Password" required/>
+        <br/>
         <input type="submit" value="Create Account"/>
       </form>
+      {
+        user.error && <p style={{color:'red'}}>{user.error}</p>
+      }
     </div>
   );
 }
